@@ -1,0 +1,70 @@
+#include <DHT.h>
+#include <LiquidCrystal_I2C.h>
+
+// Pin definitions
+#define DHT_PIN 2
+#define RAIN_SENSOR_PIN A0
+#define DHT_TYPE DHT22
+
+// Initialize DHT sensor
+DHT dht(DHT_PIN, DHT_TYPE);
+
+// Initialize LCD (I2C address 0x27, 16 columns x 2 rows)
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+void setup() {
+  Serial.begin(9600);
+  dht.begin();
+  lcd.init();
+  lcd.backlight();
+  pinMode(RAIN_SENSOR_PIN, INPUT);
+
+  lcd.setCursor(0, 0);
+  lcd.print("Weather Station");
+  lcd.setCursor(0, 1);
+  lcd.print("Starting...");
+  delay(2000);
+  lcd.clear();
+}
+
+void loop() {
+  float humidity = dht.readHumidity();
+  float temperature = dht.readTemperature();
+  int rainValue = analogRead(RAIN_SENSOR_PIN);
+  int rainPercentage = map(rainValue, 0, 1023, 100, 0);
+  bool isRaining = rainPercentage > 30;
+
+  if (isnan(humidity) || isnan(temperature)) {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Sensor Error!");
+    return;
+  }
+
+  // Transmit data with start marker `*`, comma separators, and end marker `#`
+  Serial.print("*");
+  Serial.print(temperature, 1);
+  Serial.print(",");
+  Serial.print(humidity, 1);
+  Serial.print(",");
+  Serial.print(rainPercentage);
+  Serial.print(",");
+  Serial.print(isRaining ? "1" : "0");
+  Serial.println("#");
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("T:");
+  lcd.print(temperature, 1);
+  lcd.print((char)223);
+  lcd.print("C H:");
+  lcd.print(humidity, 1);
+  lcd.print("%");
+
+  lcd.setCursor(0, 1);
+  lcd.print("Rain: ");
+  lcd.print(rainPercentage);
+  lcd.print("%");
+
+  delay(1000);
+}
